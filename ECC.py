@@ -287,7 +287,7 @@ class ECCipher:
 
     def gen_fancy_des_partial_key(self, sk):
         pt = self.gen_partial_key_n(sk, 4)
-        return ECCipher.dump_points(pt)
+        return bytearray(ECCipher.dump_points(pt))
 
     def gen_fancy_des_shared_key(self, sk, ptb):
         pt = ECCipher.load_points(ptb)
@@ -380,6 +380,12 @@ def main():
 
     ptb_a = cipher.gen_fancy_des_partial_key(sk_a)
     ptb_b = cipher.gen_fancy_des_partial_key(sk_b)
+
+    msg = bytes(ptb_a[:]) + "name: Faiz".encode()
+    extracted = msg[:msg.decode(errors='replace').rfind("name:")]
+
+    assert ptb_a == extracted
+
 
     sh_a = cipher.gen_fancy_des_shared_key(sk_a, ptb_b)
     sh_b = cipher.gen_fancy_des_shared_key(sk_b, ptb_a)

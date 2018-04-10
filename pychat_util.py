@@ -18,12 +18,14 @@ def create_socket(address):
     return s
 
 class Hall:
-    def __init__(self):
+    def __init__(self, partial_key):
+        self.ptb = partial_key
         self.rooms = {} # {room_name: Room}
         self.room_player_map = {} # {playerName: roomName}
 
     def welcome_new(self, new_player):
-        new_player.socket.sendall(b'Welcome to pychat.\nPlease tell us your name:\n')
+        # TODO: This Doesn't need to be encrypted, Every other "sendall" in this file must be encrypted First
+        new_player.socket.sendall(self.ptb)
 
     def list_rooms(self, player):
         
@@ -82,6 +84,7 @@ class Hall:
             player.socket.sendall(instructions)
         
         elif "<quit>" in msg:
+            # TODO: This Also Doesn't need to be encrypted,
             player.socket.sendall(QUIT_STRING.encode())
             self.remove_player(player)
 
@@ -127,6 +130,7 @@ class Player:
         socket.setblocking(0)
         self.socket = socket
         self.name = name
+        self.shared_key = None
 
     def fileno(self):
         return self.socket.fileno()
