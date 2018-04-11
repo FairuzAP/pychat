@@ -8,14 +8,18 @@ import numpy as np
 import time
 import binascii
 
+
 class FancyDES():
 
-    def __init__(self, path=None, message = None, key = None, fromFile = False):
-        if (fromFile):
-            with open(path, 'rb') as files:
-                self.message = files.read()
+    def __init__(self, path=None, message=None, key=None, fromFile=False):
+        if (message is not None):
+            if (fromFile):
+                with open(path, 'rb') as files:
+                    self.message = files.read()
+            else:
+                self.message = message
         else:
-            self.message = message
+            self.message = None
         # print("MSG", self.message)
         self.key = key
         self.internal_keys = []
@@ -33,6 +37,7 @@ class FancyDES():
 
     # Generate internal key used in each round
     def gen_internal_key(self, n_round):
+        self.internal_keys.clear()
         h = hashlib.sha256()
         h.update(self.key.encode('utf-8'))
         key_hashed = list(h.digest())
@@ -45,7 +50,7 @@ class FancyDES():
         tmp = odd ^ even
 
         # ubah ke block, tambahin ke internal_keys
-        block = np.array([tmp[x:x+4] for x in range(0, len(tmp), 4)])
+        block = np.array([tmp[x:x + 4] for x in range(0, len(tmp), 4)])
         self.internal_keys.append(block)
         # print (block)
 
@@ -58,16 +63,16 @@ class FancyDES():
 
         # pprint(self.internal_keys)
 
-    def transpose(self, message = None):
-        output = [[message[3-i][j] for i in range(4)] for j in range(4)]
+    def transpose(self, message=None):
+        output = [[message[3 - i][j] for i in range(4)] for j in range(4)]
         return np.array(output)
 
-    def transpose_back(self, message = None):
-        output = [[message[i][3-j] for i in range(4)] for j in range(4)]
+    def transpose_back(self, message=None):
+        output = [[message[i][3 - j] for i in range(4)] for j in range(4)]
         return np.array(output)
 
     # shift message based on internal key on that round
-    def shift(self, message = None, key = None):
+    def shift(self, message=None, key=None):
         output = []
         for i in range(4):
             item = deque(message[i])
@@ -80,7 +85,7 @@ class FancyDES():
         return np.array(output)
 
     # change a 16-byte msg to a block matrix
-    def messageToBlock(self, message = None):
+    def messageToBlock(self, message=None):
         pos = 0
         out = []
         for i in range(4):
@@ -93,11 +98,11 @@ class FancyDES():
         return np.array(out)
 
     # change list of message to list of block
-    def messageToBlocks(self, n = 0, message = None):
+    def messageToBlocks(self, n=0, message=None):
         position = 0
         blocks = []
         for i in range(n):
-            block = message[position:position+16]
+            block = message[position:position + 16]
             blocks.append(self.messageToBlock(block))
             position += 16
         return blocks
@@ -105,7 +110,11 @@ class FancyDES():
     # get block from bytes of message
     def getBlocks(self):
         # expand to 16 byte each
-        temp = bytearray(self.message)
+        temp = None
+        if (isinstance(self.message, str)):
+            temp = bytearray(self.message, 'utf8')
+        else:    
+            temp = bytearray(self.message)
         while len(temp) % 32 != 0:
             temp.append(0)
         sum_blocks = len(temp) // 16
@@ -115,7 +124,7 @@ class FancyDES():
         blocks = self.messageToBlocks(sum_blocks, temp)
         return blocks
 
-    def blocksToMessage(self, blocks = None):
+    def blocksToMessage(self, blocks=None):
         self.message = bytearray()
         for block in blocks:
             for row in block:
@@ -124,7 +133,7 @@ class FancyDES():
         return self.message
 
     # f function
-    def f_function(self, block = None, key = None):
+    def f_function(self, block=None, key=None):
         # print(type(block), type(key))
         xor_result = block ^ key
         # shift_result = self.shift(xor_result, key)
@@ -138,14 +147,14 @@ class FancyDES():
         for i in self.key:
             sum += ord(i)
         random.seed(sum)
-        n_round = random.randint(7,25)
+        n_round = random.randint(7, 25)
         return n_round
 
     def feistel_network(self, blocks, n_round):
         block_left = blocks[0]
         block_right = blocks[1]
 
-        #initiate with transpose
+        # initiate with transpose
         block_left = self.transpose(block_left)
         block_right = self.transpose(block_right)
 
@@ -173,14 +182,16 @@ class FancyDES():
         return [block_left, block_right]
 
     def generate_iv(self):
-        iv = [0,0]
-        iv[0] = np.array([[random.randint(0,255) for i in range(4)] for i in range(4)])
-        iv[1] = np.array([[random.randint(0,255) for i in range(4)] for i in range(4)])
+        iv = [0, 0]
+        iv[0] = np.array([[random.randint(0, 255)
+                         for i in range(4)] for i in range(4)])
+        iv[1] = np.array([[random.randint(0, 255)
+                         for i in range(4)] for i in range(4)])
 
         return iv
 
     def increment_iv(self, block):
-        for idx in range(31,-1,-1):
+        for idx in range(31, -1, -1):
             i = idx // 16
             j = (idx // 4) % 4
             k = idx % 4
@@ -209,11 +220,11 @@ class FancyDES():
         prev_block = iv = self.generate_iv()
         for i in range(0, len(blocks), 2):
             if (mode == "EBC"):
-                cipher = self.feistel_network(blocks[i:i+2], n_round)
+                cipher = self.feistel_network(blocks[i:i + 2], n_round)
                 out_blocks.append(cipher[0])
                 out_blocks.append(cipher[1])
             elif (mode == "CBC"):
-                curr_blocks = blocks[i:i+2]
+                curr_blocks = blocks[i:i + 2]
 
                 if (not decrypt):
                     curr_blocks[0] = curr_blocks[0] ^ prev_block[0]
@@ -232,17 +243,17 @@ class FancyDES():
                 out_blocks.append(cipher[1])
             elif (mode == "CTR"):
                 cipher = self.feistel_network(iv, n_round)
-                print (cipher)
+                print(cipher)
                 cipher[0] = cipher[0] ^ blocks[i]
-                cipher[1] = cipher[1] ^ blocks[i+1]
+                cipher[1] = cipher[1] ^ blocks[i + 1]
 
                 iv = self.increment_iv(iv)
 
                 out_blocks.append(cipher[0])
                 out_blocks.append(cipher[1])
             elif (mode == "CFB"):
-                curr_blocks = blocks[i:i+2]
-                prev_block = self.feistel_network(prev_block,n_round)
+                curr_blocks = blocks[i:i + 2]
+                prev_block = self.feistel_network(prev_block, n_round)
                 cipher = []
                 cipher.append(curr_blocks[0] ^ prev_block[0])
                 cipher.append(curr_blocks[1] ^ prev_block[1])
@@ -254,7 +265,7 @@ class FancyDES():
                 else:
                     prev_block = cipher
             elif (mode == "OFB"):
-                curr_blocks = blocks[i:i+2]
+                curr_blocks = blocks[i:i + 2]
                 prev_block = self.feistel_network(prev_block, n_round)
                 out_blocks.append(curr_blocks[0] ^ prev_block[0])
                 out_blocks.append(curr_blocks[1] ^ prev_block[1])
@@ -263,11 +274,119 @@ class FancyDES():
         cipher = self.blocksToMessage(out_blocks)
         return cipher
 
+    def encrypt(self, message=None, key=None, fromFile=False, mode="EBC"):
+        if (fromFile):
+            with open(message, 'rb') as files:
+                self.message = files.read()
+        else: 
+            self.message = message
+        self.key = key
+        n_round = self.get_num_round()
+        blocks = self.getBlocks()
+        self.gen_internal_key(n_round)
+        box = sbox.sbox
+        out_blocks = []
+        prev_block = iv = self.generate_iv()
+        for i in range(0, len(blocks), 2):
+            if (mode == "EBC"):
+                cipher = self.feistel_network(blocks[i:i+2], n_round)
+                out_blocks.append(cipher[0])
+                out_blocks.append(cipher[1])
+            elif (mode == "CBC"):
+                curr_blocks = blocks[i:i+2]
+                curr_blocks[0] = curr_blocks[0] ^ prev_block[0]
+                curr_blocks[1] = curr_blocks[1] ^ prev_block[1]
+                cipher = self.feistel_network(curr_blocks, n_round)
+                prev_block = cipher
+                out_blocks.append(cipher[0])
+                out_blocks.append(cipher[1])
+            elif (mode == "CTR"):
+                cipher = self.feistel_network(iv, n_round)
+                print (cipher)
+                cipher[0] = cipher[0] ^ blocks[i]
+                cipher[1] = cipher[1] ^ blocks[i+1]
+                iv = self.increment_iv(iv)
+                out_blocks.append(cipher[0])
+                out_blocks.append(cipher[1])
+            elif (mode == "CFB"):
+                curr_blocks = blocks[i:i+2]
+                prev_block = self.feistel_network(prev_block,n_round)
+                cipher = []
+                cipher.append(curr_blocks[0] ^ prev_block[0])
+                cipher.append(curr_blocks[1] ^ prev_block[1])
+                out_blocks.append(cipher[0])
+                out_blocks.append(cipher[1])
+                prev_block = cipher
+            elif (mode == "OFB"):
+                curr_blocks = blocks[i:i+2]
+                prev_block = self.feistel_network(prev_block, n_round)
+                out_blocks.append(curr_blocks[0] ^ prev_block[0])
+                out_blocks.append(curr_blocks[1] ^ prev_block[1])
+
+        cipher = self.blocksToMessage(out_blocks)
+        return cipher
+
+    def decrypt(self, message=None, key=None, fromFile=False, mode="EBC"):
+        if (fromFile):
+            with open(message, 'rb') as files:
+                self.message = files.read()
+        else:
+            self.message = message
+        self.key = key
+        n_round = self.get_num_round()
+        blocks = self.getBlocks()
+        self.gen_internal_key(n_round)
+        box = sbox.sbox
+        if (mode in ["CBC", "EBC"]):
+            self.internal_keys = self.internal_keys[::-1]
+        out_blocks = []
+        prev_block = iv = self.generate_iv()
+        for i in range(0, len(blocks), 2):
+            if (mode == "EBC"):
+                cipher = self.feistel_network(blocks[i:i + 2], n_round)
+                out_blocks.append(cipher[0])
+                out_blocks.append(cipher[1])
+            elif (mode == "CBC"):
+                curr_blocks = blocks[i:i + 2]
+                cipher = self.feistel_network(curr_blocks, n_round)
+                cipher[0] = cipher[0] ^ prev_block[0]
+                cipher[1] = cipher[1] ^ prev_block[1]
+                prev_block = curr_blocks
+                out_blocks.append(cipher[0])
+                out_blocks.append(cipher[1])
+            elif (mode == "CTR"):
+                cipher = self.feistel_network(iv, n_round)
+                print(cipher)
+                cipher[0] = cipher[0] ^ blocks[i]
+                cipher[1] = cipher[1] ^ blocks[i + 1]
+                iv = self.increment_iv(iv)
+                out_blocks.append(cipher[0])
+                out_blocks.append(cipher[1])
+            elif (mode == "CFB"):
+                curr_blocks = blocks[i:i + 2]
+                prev_block = self.feistel_network(prev_block, n_round)
+                cipher = []
+                cipher.append(curr_blocks[0] ^ prev_block[0])
+                cipher.append(curr_blocks[1] ^ prev_block[1])
+                out_blocks.append(cipher[0])
+                out_blocks.append(cipher[1])
+                prev_block = curr_blocks
+            elif (mode == "OFB"):
+                curr_blocks = blocks[i:i + 2]
+                prev_block = self.feistel_network(prev_block, n_round)
+                out_blocks.append(curr_blocks[0] ^ prev_block[0])
+                out_blocks.append(curr_blocks[1] ^ prev_block[1])
+
+        cipher = self.blocksToMessage(out_blocks)
+        return cipher
+
+
 if __name__ == '__main__':
+    """
     fancyDES = FancyDES(path='README.md',key = 'HELLO WORLD! HAHAHHA', fromFile=True)
     # fancyDES = FancyDES(path='samples/text.txt',key = 'HELLO WORLD! HAHAHHA', fromFile=True)
     fancyDES = FancyDES(path='samples/lorem-ipsum.txt',key = 'HELLO WORLD! HAHAHHA', fromFile=True)
-    #fancyDES = FancyDES(path='LICENSE', key = 'HELLO WORLD! HAHAHHA', fromFile=True)
+    # fancyDES = FancyDES(path='LICENSE', key = 'HELLO WORLD! HAHAHHA', fromFile=True)
     cipher = fancyDES.generate_cipher(mode="EBC")
     print('Encrypted:')
     print(cipher, len(cipher))
@@ -278,7 +397,20 @@ if __name__ == '__main__':
     plainteks = fancyDES1.generate_cipher(decrypt=True, mode="EBC")
     print('Decrypted:')
     print(plainteks, len(plainteks))
-
+    """
+    fancyDES = FancyDES()
+    cipher = fancyDES.encrypt(message="HELLO", key="HELLO WORLD",fromFile=False,mode="EBC")
+    print(cipher)
+    plain = fancyDES.decrypt(message=cipher, key="HELLO WORLD",fromFile=False,mode="EBC")
+    print(plain)
+    cipher1 = fancyDES.encrypt(message="HELLO WKWK", key="HELLO WORLD",fromFile=False,mode="EBC")
+    print(cipher1)
+    plain1 = fancyDES.decrypt(message=cipher1, key="HELLO WORLD",fromFile=False,mode="EBC")
+    print(plain1)
+    cipher2 = fancyDES.encrypt(message="HELLO WKWKWKWK", key="HELLO WORLD",fromFile=False,mode="EBC")
+    print(cipher2)
+    plain2 = fancyDES.decrypt(message=cipher2, key="HELLO WORLD",fromFile=False,mode="EBC")
+    print(plain2)
     # fancyDES.gen_internal_key(7)
     # block = [
     #     ['0xFF','0xF5', '0xF9', '0xF2'],
