@@ -39,8 +39,8 @@ class FancyDES():
     def set_key_and_generate(self, key=None):
         if key is not None:
             self.key = key
-            n_round = self.get_num_round()
-            self.gen_internal_key(n_round)
+            self.n_round = self.generate_round()
+            self.gen_internal_key(self.n_round)
 
     # Generate internal key used in each round
     def gen_internal_key(self, n_round):
@@ -70,6 +70,8 @@ class FancyDES():
             self.internal_keys.append(new_block)
             block = new_block
 
+        self.ori_key = list(self.internal_keys)
+        self.swapped_key = self.internal_keys[::-1]
         # pprint(self.internal_keys)
 
     def transpose(self, message=None):
@@ -145,7 +147,7 @@ class FancyDES():
         sbox_result = self.sub_sbox(shift_result, sbox.sbox)
         return sbox_result
 
-    def get_num_round(self):
+    def generate_round(self):
         sum = 0
         if isinstance(self.key,str):
             for i in self.key:
@@ -153,10 +155,12 @@ class FancyDES():
         else:
             for i in self.key:
                 sum += i
-
         random.seed(sum)
         n_round = random.randint(7, 25)
         return n_round
+
+    def get_num_round(self):
+        return self.n_round
 
     def feistel_network(self, blocks, n_round):
         block_left = blocks[0]
@@ -292,6 +296,8 @@ class FancyDES():
         if key is not None:
             self.set_key_and_generate(key)
         n_round = self.get_num_round()
+        self.internal_keys = self.ori_key
+
         box = sbox.sbox
         out_blocks = []
         prev_block = iv = self.generate_iv()
@@ -346,7 +352,7 @@ class FancyDES():
         n_round = self.get_num_round()
         box = sbox.sbox
         if (mode in ["CBC", "EBC"]):
-            self.internal_keys = self.internal_keys[::-1]
+            self.internal_keys = self.swapped_key
         out_blocks = []
         prev_block = iv = self.generate_iv()
         for i in range(0, len(blocks), 2):
