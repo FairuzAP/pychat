@@ -20,9 +20,10 @@ class FancyDES():
                 self.message = message
         else:
             self.message = None
-        # print("MSG", self.message)
-        self.key = key
+        self.key=None
         self.internal_keys = []
+        if (key is not None):
+            self.set_key_and_generate(key)
 
     # Substitute block with the given sbox
     def sub_sbox(self, block, box):
@@ -35,18 +36,26 @@ class FancyDES():
                 new_block[i][j] = sbox.sub(cell, box)
         return new_block
 
+    def set_key_and_generate(self, key=None):
+        if key is not None:
+            self.key = key
+            n_round = self.get_num_round()
+            self.gen_internal_key(n_round)
+
     # Generate internal key used in each round
     def gen_internal_key(self, n_round):
-        self.internal_keys.clear()
+        self.internal_keys = []
         h = hashlib.sha256()
-        h.update(self.key.encode('utf-8'))
+        if isinstance(self.key,str):
+            h.update(self.key.encode('utf-8'))
+        else:
+            h.update(self.key)
         key_hashed = list(h.digest())
-        # print (key_hashed, type(key_hashed), len(key_hashed))
+        #print (key_hashed, type(key_hashed), len(key_hashed))
 
         # bagi ganjil-genap, XOR
         odd = np.array(key_hashed[::2])
         even = np.array(key_hashed[1::2])
-        # print(type(odd))
         tmp = odd ^ even
 
         # ubah ke block, tambahin ke internal_keys
@@ -118,9 +127,6 @@ class FancyDES():
         while len(temp) % 32 != 0:
             temp.append(0)
         sum_blocks = len(temp) // 16
-        # print(len(self.message))
-        # print(len(temp))
-        # print (temp, len(temp))
         blocks = self.messageToBlocks(sum_blocks, temp)
         return blocks
 
@@ -134,11 +140,8 @@ class FancyDES():
 
     # f function
     def f_function(self, block=None, key=None):
-        # print(type(block), type(key))
         xor_result = block ^ key
-        # shift_result = self.shift(xor_result, key)
         shift_result = xor_result
-        # subsitusi s-box
         sbox_result = self.sub_sbox(shift_result, sbox.sbox)
         return sbox_result
 
@@ -274,16 +277,16 @@ class FancyDES():
         cipher = self.blocksToMessage(out_blocks)
         return cipher
 
-    def encrypt(self, message=None, key=None, fromFile=False, mode="EBC"):
+    def encrypt(self, message=None, key=None, fromFile=False, mode="EBC", ):
         if (fromFile):
             with open(message, 'rb') as files:
                 self.message = files.read()
         else: 
             self.message = message
-        self.key = key
-        n_round = self.get_num_round()
         blocks = self.getBlocks()
-        self.gen_internal_key(n_round)
+        if key is not None:
+            self.set_key_and_generate(key)
+        n_round = self.get_num_round()
         box = sbox.sbox
         out_blocks = []
         prev_block = iv = self.generate_iv()
@@ -332,10 +335,10 @@ class FancyDES():
                 self.message = files.read()
         else:
             self.message = message
-        self.key = key
-        n_round = self.get_num_round()
         blocks = self.getBlocks()
-        self.gen_internal_key(n_round)
+        if key is not None:
+            self.set_key_and_generate(key)
+        n_round = self.get_num_round()
         box = sbox.sbox
         if (mode in ["CBC", "EBC"]):
             self.internal_keys = self.internal_keys[::-1]
@@ -398,18 +401,18 @@ if __name__ == '__main__':
     print('Decrypted:')
     print(plainteks, len(plainteks))
     """
-    fancyDES = FancyDES()
-    cipher = fancyDES.encrypt(message="HELLO", key="HELLO WORLD",fromFile=False,mode="EBC")
+    fancyDES = FancyDES(key="HELLO WORLD")
+    cipher = fancyDES.encrypt(message="HELLO", fromFile=False,mode="EBC")
     print(cipher)
-    plain = fancyDES.decrypt(message=cipher, key="HELLO WORLD",fromFile=False,mode="EBC")
+    plain = fancyDES.decrypt(message=cipher, fromFile=False,mode="EBC")
     print(plain)
-    cipher1 = fancyDES.encrypt(message="HELLO WKWK", key="HELLO WORLD",fromFile=False,mode="EBC")
+    cipher1 = fancyDES.encrypt(message="HELLO WKWK", fromFile=False,mode="EBC")
     print(cipher1)
-    plain1 = fancyDES.decrypt(message=cipher1, key="HELLO WORLD",fromFile=False,mode="EBC")
+    plain1 = fancyDES.decrypt(message=cipher1, fromFile=False,mode="EBC")
     print(plain1)
-    cipher2 = fancyDES.encrypt(message="HELLO WKWKWKWK", key="HELLO WORLD",fromFile=False,mode="EBC")
+    cipher2 = fancyDES.encrypt(message="HELLO WKWKWKWK", fromFile=False,mode="EBC")
     print(cipher2)
-    plain2 = fancyDES.decrypt(message=cipher2, key="HELLO WORLD",fromFile=False,mode="EBC")
+    plain2 = fancyDES.decrypt(message=cipher2, fromFile=False,mode="EBC")
     print(plain2)
     # fancyDES.gen_internal_key(7)
     # block = [
