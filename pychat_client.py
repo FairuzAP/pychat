@@ -32,40 +32,39 @@ class PychatClient:
                 self.handle_server_msg(msg)
 
     def handle_server_msg(self, msg):
-        if msg == pychat_util.QUIT_STRING.encode():
-            sys.stdout.write('Bye\n')
-            self.server_connection.close()
-            os._exit(2)
+        # If the server hasn't send it's partial key yet
+        if self.shared_key is None:
+            msg_bytes = bytes(self.curve.gen_fancy_des_partial_key(self.secret_key))
+            self.server_connection.sendall(msg_bytes)
+
+            self.shared_key = self.curve.gen_fancy_des_shared_key(self.secret_key, msg)
+            self.cipher = FancyDES(key=self.shared_key)
+
+            self.msg_prefix = 'name: '  # identifier for name
+            sys.stdout.write("Welcome to pychat.\nPlease tell us your name:\n")
 
         else:
-            # If the server hasn't send it's partial key yet
-            if self.shared_key is None:
-                self.msg_prefix = 'name: '  # identifier for name
-                sys.stdout.write("Welcome to pychat.\nPlease tell us your name:\n")
-                self.shared_key = self.curve.gen_fancy_des_shared_key(self.secret_key, msg)
-                self.cipher = FancyDES(key=self.shared_key)
+            # Decrypt the non-PartialKey response
+            msg = self.cipher.decrypt(message=msg, fromFile=False, mode="CBC")
+            decoded = msg.decode().rstrip('\0')
 
-            else:
-                # TODO: Decrypt the non-QUIT and PartialKey response here first
+            if decoded == pychat_util.QUIT_STRING:
+                sys.stdout.write('Bye\n')
+                self.server_connection.close()
+                os._exit(2)
 
-                decoded = msg.decode(encoding='UTF-8', errors='ignore')
-                self.msg_prefix = ''
-                sys.stdout.write(decoded)
+            self.msg_prefix = ''
+            sys.stdout.write(decoded)
 
-            print('>', end=' ', flush=True)
+        print('>', end=' ', flush=True)
 
     def listen_to_stdin(self):
         while True:
             msg = sys.stdin.readline()
             msg = self.msg_prefix + msg
 
-            # If this is the first message sent to server, prepend the partial key
-            if self.msg_prefix == 'name: ':
-                msg_bytes = bytes(self.curve.gen_fancy_des_partial_key(self.secret_key)) + msg.encode()
-
             # Encrypt the msg buffer here first, except the first username buffer
-            else:
-                msg_bytes = self.cipher.encrypt(message=msg.encode(), fromFile=False, mode="CBC")
+            msg_bytes = self.cipher.encrypt(message=msg.encode(), fromFile=False, mode="CBC")
 
             self.server_connection.sendall(msg_bytes)
 

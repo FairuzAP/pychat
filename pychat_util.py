@@ -24,7 +24,7 @@ class Hall:
         self.room_player_map = {} # {playerName: roomName}
 
     def welcome_new(self, new_player):
-        # TODO: This Doesn't need to be encrypted, Every other "sendall" in this file must be encrypted First
+        # This Doesn't need to be encrypted,
         new_player.socket.sendall(self.ptb)
 
     def list_rooms(self, player):
@@ -32,12 +32,12 @@ class Hall:
         if len(self.rooms) == 0:
             msg = 'Oops, no active rooms currently. Create your own!\n' \
                 + 'Use [<join> room_name] to create a room.\n'
-            player.socket.sendall(msg.encode())
+            player.encrypt_send(msg.encode())
         else:
             msg = 'Listing current rooms...\n'
             for room in self.rooms:
                 msg += room + ": " + str(len(self.rooms[room].players)) + " player(s)\n"
-            player.socket.sendall(msg.encode())
+            player.encrypt_send(msg.encode())
     
     def handle_msg(self, player, msg):
         
@@ -50,19 +50,19 @@ class Hall:
             + b'\n'
 
         print(player.name + " says: " + msg)
-        if "name:" in msg:
+        if "name:" in msg.lower():
             name = msg.split()[1]
             player.name = name
             print("New connection from:", player.name)
-            player.socket.sendall(instructions)
+            player.encrypt_send(instructions)
 
-        elif "<join>" in msg:
+        elif "<join>" in msg.lower():
             same_room = False
             if len(msg.split()) >= 2: # error check
                 room_name = msg.split()[1]
                 if player.name in self.room_player_map: # switching?
                     if self.room_player_map[player.name] == room_name:
-                        player.socket.sendall(b'You are already in room: ' + room_name.encode())
+                        player.encrypt_send(b'You are already in room: ' + room_name.encode())
                         same_room = True
                     else: # switch
                         old_room = self.room_player_map[player.name]
@@ -75,17 +75,16 @@ class Hall:
                     self.rooms[room_name].welcome_new(player)
                     self.room_player_map[player.name] = room_name
             else:
-                player.socket.sendall(instructions)
+                player.encrypt_send(instructions)
 
-        elif "<list>" in msg:
+        elif "<list>" in msg.lower():
             self.list_rooms(player) 
 
-        elif "<manual>" in msg:
-            player.socket.sendall(instructions)
+        elif "<manual>" in msg.lower():
+            player.encrypt_send(instructions)
         
-        elif "<quit>" in msg:
-            # TODO: This Also Doesn't need to be encrypted,
-            player.socket.sendall(QUIT_STRING.encode())
+        elif "<quit>" in msg.lower():
+            player.encrypt_send(QUIT_STRING.encode())
             self.remove_player(player)
 
         else:
@@ -96,7 +95,7 @@ class Hall:
                 msg = 'You are currently not in any room! \n' \
                     + 'Use [<list>] to see available rooms! \n' \
                     + 'Use [<join> room_name] to join a room! \n'
-                player.socket.sendall(msg.encode())
+                player.encrypt_send(msg.encode())
     
     def remove_player(self, player):
         if player.name in self.room_player_map:
@@ -113,12 +112,12 @@ class Room:
     def welcome_new(self, from_player):
         msg = self.name + " welcomes: " + from_player.name + '\n'
         for player in self.players:
-            player.socket.sendall(msg.encode())
+            player.encrypt_send(msg.encode())
     
     def broadcast(self, from_player, msg):
         msg = from_player.name.encode() + b":" + msg
         for player in self.players:
-            player.socket.sendall(msg)
+            player.encrypt_send(msg)
 
     def remove_player(self, player):
         self.players.remove(player)
@@ -136,3 +135,7 @@ class Player:
 
     def fileno(self):
         return self.socket.fileno()
+
+    def encrypt_send(self, msg):
+        msg = self.cipher.encrypt(message=msg, fromFile=False, mode="CBC")
+        self.socket.sendall(msg)
