@@ -39,8 +39,8 @@ class FancyDES():
     def set_key_and_generate(self, key=None):
         if key is not None:
             self.key = key
-            n_round = self.get_num_round()
-            self.gen_internal_key(n_round)
+            self.n_round = self.generate_round()
+            self.gen_internal_key(self.n_round)
 
     # Generate internal key used in each round
     def gen_internal_key(self, n_round):
@@ -70,6 +70,8 @@ class FancyDES():
             self.internal_keys.append(new_block)
             block = new_block
 
+        self.ori_key = list(self.internal_keys)
+        self.swapped_key = self.internal_keys[::-1]
         # pprint(self.internal_keys)
 
     def transpose(self, message=None):
@@ -145,13 +147,19 @@ class FancyDES():
         sbox_result = self.sub_sbox(shift_result, sbox.sbox)
         return sbox_result
 
-    def get_num_round(self):
+    def generate_round(self):
         sum = 0
         for i in self.key:
-            sum += ord(i)
+            if isinstance(i,str):
+                sum += ord(i)
+            else:
+                sum += i
         random.seed(sum)
         n_round = random.randint(7, 25)
         return n_round
+
+    def get_num_round(self):
+        return self.n_round
 
     def feistel_network(self, blocks, n_round):
         block_left = blocks[0]
@@ -287,6 +295,8 @@ class FancyDES():
         if key is not None:
             self.set_key_and_generate(key)
         n_round = self.get_num_round()
+        self.internal_keys = self.ori_key
+
         box = sbox.sbox
         out_blocks = []
         prev_block = iv = self.generate_iv()
@@ -341,7 +351,7 @@ class FancyDES():
         n_round = self.get_num_round()
         box = sbox.sbox
         if (mode in ["CBC", "EBC"]):
-            self.internal_keys = self.internal_keys[::-1]
+            self.internal_keys = self.swapped_key
         out_blocks = []
         prev_block = iv = self.generate_iv()
         for i in range(0, len(blocks), 2):
@@ -401,19 +411,23 @@ if __name__ == '__main__':
     print('Decrypted:')
     print(plainteks, len(plainteks))
     """
-    fancyDES = FancyDES(key="HELLO WORLD")
+    keynew=bytes([0x13, 0x00, 0x00, 0x00, 0x08, 0x00])
+    #keynew="HELLO"
+    fancyDES = FancyDES(key=keynew)
     cipher = fancyDES.encrypt(message="HELLO", fromFile=False,mode="EBC")
     print(cipher)
-    plain = fancyDES.decrypt(message=cipher, fromFile=False,mode="EBC")
-    print(plain)
-    cipher1 = fancyDES.encrypt(message="HELLO WKWK", fromFile=False,mode="EBC")
+    cipher1 = fancyDES.encrypt(message="HELLO WKWKWKWKWKWK", fromFile=False,mode="EBC")
     print(cipher1)
-    plain1 = fancyDES.decrypt(message=cipher1, fromFile=False,mode="EBC")
-    print(plain1)
     cipher2 = fancyDES.encrypt(message="HELLO WKWKWKWK", fromFile=False,mode="EBC")
     print(cipher2)
+    plain = fancyDES.decrypt(message=cipher, fromFile=False,mode="EBC")
+    print(plain)
+    plain1 = fancyDES.decrypt(message=cipher1, fromFile=False,mode="EBC")
+    print(plain1)
     plain2 = fancyDES.decrypt(message=cipher2, fromFile=False,mode="EBC")
     print(plain2)
+    plain3 = fancyDES.decrypt(message=cipher2, fromFile=False,mode="EBC")
+    print(plain3)
     # fancyDES.gen_internal_key(7)
     # block = [
     #     ['0xFF','0xF5', '0xF9', '0xF2'],
