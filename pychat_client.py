@@ -2,6 +2,7 @@ import socket, sys, os
 from threading import Thread
 from ECC import ECCipher
 from Point import Point
+from fancyDES import FancyDES
 import pychat_util
 
 
@@ -14,10 +15,12 @@ class PychatClient:
         self.server_connection.connect((sys.argv[1], pychat_util.PORT))
 
         print("Connected to server\n")
-        self.cipher = ECCipher(-1, 188, 7919, Point(224, 503), 20)
-        self.secret_key = self.cipher.gen_fancy_des_secret_key()
+        self.curve = ECCipher(-1, 188, 7919, Point(224, 503), 20)
+        self.secret_key = self.curve.gen_fancy_des_secret_key()
         self.msg_prefix = ''
+
         self.shared_key = None
+        self.cipher = None
 
     def listen_to_server(self):
         while True:
@@ -39,7 +42,8 @@ class PychatClient:
             if self.shared_key is None:
                 self.msg_prefix = 'name: '  # identifier for name
                 sys.stdout.write("Welcome to pychat.\nPlease tell us your name:\n")
-                self.shared_key = self.cipher.gen_fancy_des_shared_key(self.secret_key, msg)
+                self.shared_key = self.curve.gen_fancy_des_shared_key(self.secret_key, msg)
+                self.cipher = FancyDES(key=self.shared_key)
 
             else:
                 # TODO: Decrypt the non-QUIT and PartialKey response here first
@@ -54,13 +58,14 @@ class PychatClient:
         while True:
             msg = sys.stdin.readline()
             msg = self.msg_prefix + msg
-            msg_bytes = msg.encode()
-
-            # TODO: Encrypt the msg buffer here first, including the first username buffer
 
             # If this is the first message sent to server, prepend the partial key
             if self.msg_prefix == 'name: ':
-                msg_bytes = bytes(self.cipher.gen_fancy_des_partial_key(self.secret_key)) + msg_bytes
+                msg_bytes = bytes(self.curve.gen_fancy_des_partial_key(self.secret_key)) + msg.encode()
+
+            # Encrypt the msg buffer here first, except the first username buffer
+            else:
+                msg_bytes = self.cipher.encrypt(message=msg.encode(), fromFile=False, mode="CBC")
 
             self.server_connection.sendall(msg_bytes)
 

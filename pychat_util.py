@@ -125,12 +125,14 @@ class Room:
         leave_msg = player.name.encode() + b"has left the room\n"
         self.broadcast(player, leave_msg)
 
+
 class Player:
     def __init__(self, socket, name = "new"):
         socket.setblocking(0)
         self.socket = socket
         self.name = name
         self.shared_key = None
+        self.cipher = None
 
     def fileno(self):
         return self.socket.fileno()

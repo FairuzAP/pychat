@@ -296,7 +296,7 @@ class ECCipher:
         for i in range(4):
             res.extend((sc[i].X % 4294967296).to_bytes(4, byteorder='big'))
             res.extend((sc[i].Y % 4294967296).to_bytes(4, byteorder='big'))
-        return res
+        return bytearray(res)
 
     def plain_encode(self, byte_arr):
         """

@@ -147,8 +147,13 @@ class FancyDES():
 
     def get_num_round(self):
         sum = 0
-        for i in self.key:
-            sum += ord(i)
+        if isinstance(self.key,str):
+            for i in self.key:
+                sum += ord(i)
+        else:
+            for i in self.key:
+                sum += i
+
         random.seed(sum)
         n_round = random.randint(7, 25)
         return n_round
@@ -401,19 +406,19 @@ if __name__ == '__main__':
     print('Decrypted:')
     print(plainteks, len(plainteks))
     """
-    fancyDES = FancyDES(key="HELLO WORLD")
-    cipher = fancyDES.encrypt(message="HELLO", fromFile=False,mode="EBC")
+    fancyDES = FancyDES(key=b'HELLO WORLD')
+    cipher = fancyDES.encrypt(message="<join> room1", fromFile=False,mode="CBC")
     print(cipher)
-    plain = fancyDES.decrypt(message=cipher, fromFile=False,mode="EBC")
-    print(plain)
-    cipher1 = fancyDES.encrypt(message="HELLO WKWK", fromFile=False,mode="EBC")
+    cipher1 = fancyDES.encrypt(message="HELLO WKWK", fromFile=False,mode="CBC")
     print(cipher1)
-    plain1 = fancyDES.decrypt(message=cipher1, fromFile=False,mode="EBC")
-    print(plain1)
-    cipher2 = fancyDES.encrypt(message="HELLO WKWKWKWK", fromFile=False,mode="EBC")
+    cipher2 = fancyDES.encrypt(message="HELLO WKWKWKWK", fromFile=False,mode="CBC")
     print(cipher2)
-    plain2 = fancyDES.decrypt(message=cipher2, fromFile=False,mode="EBC")
-    print(plain2)
+    plain = fancyDES.decrypt(message=cipher, fromFile=False,mode="CBC")
+    print(plain.decode())
+    plain1 = fancyDES.decrypt(message=cipher1, fromFile=False,mode="CBC")
+    print(plain1.decode())
+    plain2 = fancyDES.decrypt(message=cipher2, fromFile=False,mode="CBC")
+    print(plain2.decode())
     # fancyDES.gen_internal_key(7)
     # block = [
     #     ['0xFF','0xF5', '0xF9', '0xF2'],

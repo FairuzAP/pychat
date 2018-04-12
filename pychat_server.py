@@ -5,6 +5,7 @@ import select, sys
 from pychat_util import Hall, Player
 from ECC import ECCipher
 from Point import Point
+from fancyDES import FancyDES
 import pychat_util
 
 
@@ -13,10 +14,10 @@ class PychatServer:
         self.READ_BUFFER = 4096
         self.listen_sock = pychat_util.create_socket((host, pychat_util.PORT))
 
-        self.cipher = ECCipher(-1, 188, 7919, Point(224, 503), 20)
-        self.secret_key = self.cipher.gen_fancy_des_secret_key()
+        self.curve = ECCipher(-1, 188, 7919, Point(224, 503), 20)
+        self.secret_key = self.curve.gen_fancy_des_secret_key()
 
-        self.hall = Hall(self.cipher.gen_fancy_des_partial_key(self.secret_key))
+        self.hall = Hall(self.curve.gen_fancy_des_partial_key(self.secret_key))
         self.connection_list = []
         self.connection_list.append(self.listen_sock)
 
@@ -44,13 +45,15 @@ class PychatServer:
     def handle_player_msg(self, player, msg):
         if player.shared_key is None: # If the player hasn't sent it's key and username yet,
             partial_key = msg[:msg.decode(errors='replace').rfind("name:")]
-            player.shared_key = self.cipher.gen_fancy_des_shared_key(self.secret_key, partial_key)
+            player.shared_key = self.curve.gen_fancy_des_shared_key(self.secret_key, partial_key)
+            player.cipher = FancyDES(key=player.shared_key)
             msg = msg[msg.decode(errors='replace').rfind("name:"):]
-
-        # TODO: Decrypt the msg buffer here first, including the first username buffer
+        else:
+            msg = player.cipher.decrypt(message=msg, fromFile=False, mode="CBC")
 
         if msg:
-            msg = msg.decode(errors='replace').lower()
+            # Decrypt the msg buffer here first, including the first username buffer
+            msg = msg.decode().lower()
             self.hall.handle_msg(player, msg)
         else:
             player.socket.close()
