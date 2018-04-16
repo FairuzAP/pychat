@@ -20,7 +20,6 @@ class PychatClient:
         self.msg_prefix = ''
 
         self.shared_key = None
-        self.cipher = None
 
     def listen_to_server(self):
         while True:
@@ -38,14 +37,13 @@ class PychatClient:
             self.server_connection.sendall(msg_bytes)
 
             self.shared_key = self.curve.gen_fancy_des_shared_key(self.secret_key, msg)
-            self.cipher = FancyDES(key=self.shared_key)
 
             self.msg_prefix = 'name: '  # identifier for name
             sys.stdout.write("Welcome to pychat.\nPlease tell us your name:\n")
 
         else:
             # Decrypt the non-PartialKey response
-            msg = self.cipher.decrypt(message=msg, fromFile=False, mode="CBC")
+            msg = FancyDES(key=self.shared_key).decrypt(message=msg, fromFile=False, mode="CBC")
             decoded = msg.decode().rstrip('\0')
 
             if decoded == pychat_util.QUIT_STRING:
@@ -64,7 +62,7 @@ class PychatClient:
             msg = self.msg_prefix + msg
 
             # Encrypt the msg buffer here first, except the first username buffer
-            msg_bytes = self.cipher.encrypt(message=msg.encode(), fromFile=False, mode="CBC")
+            msg_bytes = FancyDES(key=self.shared_key).encrypt(message=msg.encode(), fromFile=False, mode="CBC")
 
             self.server_connection.sendall(msg_bytes)
 

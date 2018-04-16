@@ -3,6 +3,8 @@
 
 import socket, pdb
 
+from fancyDES import FancyDES
+
 MAX_CLIENTS = 30
 PORT = 22222
 QUIT_STRING = '<$quit$>'
@@ -115,13 +117,13 @@ class Room:
             player.encrypt_send(msg.encode())
     
     def broadcast(self, from_player, msg):
-        msg = from_player.name.encode() + b":" + msg
+        msg = from_player.name.encode() + b": " + msg
         for player in self.players:
             player.encrypt_send(msg)
 
     def remove_player(self, player):
         self.players.remove(player)
-        leave_msg = player.name.encode() + b"has left the room\n"
+        leave_msg = player.name.encode() + b" has left the room\n"
         self.broadcast(player, leave_msg)
 
 
@@ -131,11 +133,10 @@ class Player:
         self.socket = socket
         self.name = name
         self.shared_key = None
-        self.cipher = None
 
     def fileno(self):
         return self.socket.fileno()
 
     def encrypt_send(self, msg):
-        msg = self.cipher.encrypt(message=msg, fromFile=False, mode="CBC")
-        self.socket.sendall(msg)
+        encoded = FancyDES(key=self.shared_key).encrypt(message=msg, fromFile=False, mode="CBC")
+        self.socket.sendall(encoded)

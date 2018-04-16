@@ -47,11 +47,10 @@ class PychatServer:
             # If the player hasn't sent it's key and username yet,
             if player.shared_key is None:
                 player.shared_key = self.curve.gen_fancy_des_shared_key(self.secret_key, msg)
-                player.cipher = FancyDES(key=player.shared_key)
 
             # Decrypt the msg buffer here first
             else:
-                msg = player.cipher.decrypt(message=msg, fromFile=False, mode="CBC")
+                msg = FancyDES(key=player.shared_key).decrypt(message=msg, fromFile=False, mode="CBC")
                 msg = msg.decode().rstrip('\0')
                 self.hall.handle_msg(player, msg)
 
