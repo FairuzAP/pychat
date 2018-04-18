@@ -11,6 +11,11 @@ QUIT_STRING = '<$quit$>'
 
 
 def create_socket(address):
+    """
+    Helper method to create a socket to the given address
+    :param address: The address to connect to or listen from
+    :return: A non-blocking, listening socket bind to the given address
+    """
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     s.setblocking(0)
@@ -26,11 +31,11 @@ class Hall:
         self.room_player_map = {} # {playerName: roomName}
 
     def welcome_new(self, new_player):
-        # This Doesn't need to be encrypted,
+        """ Send the server's public key to a new player """
         new_player.socket.sendall(self.ptb)
 
     def list_rooms(self, player):
-        
+        """ Send an encrypted room list to the player """
         if len(self.rooms) == 0:
             msg = 'Oops, no active rooms currently. Create your own!\n' \
                 + 'Use [<join> room_name] to create a room.\n'
@@ -42,6 +47,7 @@ class Hall:
             player.encrypt_send(msg.encode())
     
     def handle_msg(self, player, msg):
+        """ Handle the message received from the given player """
         
         instructions = b'Instructions:\n'\
             + b'[<list>] to list all rooms\n'\
@@ -52,15 +58,19 @@ class Hall:
             + b'\n'
 
         print(player.name + " says: " + msg)
+
+        # If contains the tag 'name:', register the player name
         if "name:" in msg.lower():
             name = msg.split()[1]
             player.name = name
             print("New connection from:", player.name)
             player.encrypt_send(instructions)
 
+        # If contains the tag '<join>', change the player's room
         elif "<join>" in msg.lower():
             same_room = False
             if len(msg.split()) >= 2: # error check
+
                 room_name = msg.split()[1]
                 if player.name in self.room_player_map: # switching?
                     if self.room_player_map[player.name] == room_name:
@@ -69,6 +79,7 @@ class Hall:
                     else: # switch
                         old_room = self.room_player_map[player.name]
                         self.rooms[old_room].remove_player(player)
+
                 if not same_room:
                     if not room_name in self.rooms: # new room:
                         new_room = Room(room_name)
@@ -79,16 +90,20 @@ class Hall:
             else:
                 player.encrypt_send(instructions)
 
+        # If contains the tag '<list>', send the active rooms list
         elif "<list>" in msg.lower():
-            self.list_rooms(player) 
+            self.list_rooms(player)
 
+        # If contains the tag '<manual>', send the instructions manual
         elif "<manual>" in msg.lower():
             player.encrypt_send(instructions)
-        
+
+        # If contains the tag '<quit>', terminate the connection
         elif "<quit>" in msg.lower():
             player.encrypt_send(QUIT_STRING.encode())
             self.remove_player(player)
 
+        # Else, try to broadcast the message to the player's room
         else:
             # check if in a room or not first
             if player.name in self.room_player_map:
@@ -138,5 +153,6 @@ class Player:
         return self.socket.fileno()
 
     def encrypt_send(self, msg):
+        """ Encrypt all the message to a player using the shared key """
         encoded = FancyDES(key=self.shared_key).encrypt(message=msg, fromFile=False, mode="CBC")
         self.socket.sendall(encoded)
