@@ -6,6 +6,7 @@ from pychat_util import Hall, Player
 from ECC import ECCipher
 from Point import Point
 from fancyDES import FancyDES
+from ECCParameter_GUI import ECCParam
 import pychat_util
 
 
@@ -17,8 +18,14 @@ class PychatServer:
         self.READ_BUFFER = 4096
         self.listen_sock = pychat_util.create_socket((host, pychat_util.PORT))
 
+        # Create ECC parameter input window
+        # Wait until parameter is entered
+        param = ECCParam()
+        while not param.param_set : pass
+
         # Initialize the ECC curve, and generate the secret key
-        self.curve = ECCipher(-1, 188, 7919, Point(224, 503), 20)
+        #self.curve = ECCipher(-1, 188, 7919, Point(224, 503), 20)
+        self.curve = ECCipher(param.a_val, param.b_val, param.p_val, Point(param.pt_x, param.pt_y), param.k_val)
         self.secret_key = self.curve.gen_fancy_des_secret_key()
 
         # Initialize the server's Hall and the connection list
@@ -92,7 +99,6 @@ class PychatServer:
             self.hall.remove_player(player)
             player.socket.close()
             self.connection_list.remove(player)
-
 
 if __name__ == '__main__':
     host = sys.argv[1] if len(sys.argv) >= 2 else ''
